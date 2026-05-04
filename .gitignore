@@ -1,2 +1,6 @@
 dictionary.db
 newDictionary.db
+dictionary.db-shm
+dictionary.db-wal
+enrich
+enrich_new
