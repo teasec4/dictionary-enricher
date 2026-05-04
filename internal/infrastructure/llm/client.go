@@ -36,12 +36,12 @@ func NewClient(cfg Config) *Client {
 // target должен быть указателем (напр. &CleanResult{}).
 // Автоматически чистит ```json ... ``` обёртку.
 // Пытается восстановить JSON при типовых ошибках Gemma 4.
-func (c *Client) ChatJSON(ctx context.Context, systemPrompt, userPrompt string,
+func (c *Client) ChatJSON(ctx context.Context, userPrompt string,
 	 target any) error {
 
 	reqBody := map[string]any{
 		"messages": []map[string]string{
-			{"role": "system", "content": systemPrompt},
+			{"role": "system", "content": ExamplePrompt()},
 			{"role": "user", "content": userPrompt},
 		},
 	}

@@ -20,9 +20,8 @@ func CreateNewDB(dbPath string) (*sqlx.DB, error) {
 	
 	CREATE TABLE IF NOT EXISTS examples (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		headword TEXT NOT NULL
-		text TEXT NOT NULL,
-		
+		headword TEXT NOT NULL,
+		text TEXT NOT NULL
 	);
 
 	`

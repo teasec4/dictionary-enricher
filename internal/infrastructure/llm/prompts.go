@@ -7,20 +7,19 @@ func ExamplePrompt() (system string) {
 IMPORTANT: Output ONLY valid JSON. no markdown, no backticks, no commentary.
 
 Rules:
-0. you well get a list of chinise words 
+0. you well get a list of chinese words 
 1. Generate 1 examples in Chinese characters
 2. Examples should be natural, realistic sentences
 3. Vary the contexts: at least one everyday usage
 4. Keep sentences short to medium length
 5. The word should be used in context
-6. Example only in russian 
-7. "text" in json - is entry word 
+6. "text" in json - is entry word 
 
 Respond with JSON only:
 {
   "examples": [
-    {"text": "example sentence here"},
-    {"text": "another example"}
+    {"headword" : "hanzi" ,"text": "example sentence here"},
+    {"headword" : "next hanzi" ,"text": "example sentence here"},
   ]
 }`
 

@@ -4,3 +4,4 @@ dictionary.db-shm
 dictionary.db-wal
 enrich
 enrich_new
+newDB.db
