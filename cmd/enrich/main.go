@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 
 	"dabkrs-examples/internal/config"
@@ -82,20 +83,56 @@ func main() {
 
 	// Init repositories
 	dbRepo := repository.NewDBRepo(srcDB)
-	_ = repository.NewDBRepo(tgtDB) // newDBRepo for later
+	newDBrepo := repository.NewDBRepo(tgtDB) // newDBRepo for later
 
-// Init LLM client
+	// Init LLM client
 	llmClient := llm.NewClient(llm.Config{
 		BaseURL: cfg.LLMBaseURL,
 		Model:   cfg.LLMModel,
 	})
 
 	headwordsCh := make(chan string, 200)
-	resultCh := make(chan domain.Example, 200)
+	examplesCh := make(chan domain.Example, 500)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
 
 	type Content struct {
 		Examples []domain.Example
 	}
+
+	// WRITER - async bulk insert
+	go func() {
+		defer wg.Done()
+		var buf []domain.Example
+		flush := func() {
+			if len(buf) > 0 {
+				if err := newDBrepo.BulkInsert(ctx, buf); err != nil {
+					log.Printf("bulk insert error: %v", err)
+				} else {
+					log.Printf("bulk inserted %d examples", len(buf))
+				}
+				buf = buf[:0]
+			}
+		}
+
+		for {
+			select {
+			case ex, ok := <-examplesCh:
+				if !ok {
+					flush()
+					return
+				}
+				buf = append(buf, ex)
+				if len(buf) >= cfg.BatchSize {
+					flush()
+				}
+			case <-ctx.Done():
+				flush()
+				return
+			}
+		}
+	}()
 
 	// PRODUCER - running in background
 	go func() {
@@ -162,13 +199,17 @@ func main() {
 			continue
 		}
 
-		processed += len(resp.Examples)
+processed += len(resp.Examples)
 		log.Printf("Received %d examples (total: %d)", len(resp.Examples), processed)
 		for _, ex := range resp.Examples {
 			log.Printf("  %s: %s", ex.Headword, ex.Text)
-			resultCh <- ex
+			examplesCh <- ex
 		}
 	}
 
+	close(examplesCh)
+	log.Printf("Waiting for writer...")
+
+	wg.Wait()
 	log.Printf("Done! Total examples: %d", processed)
 }
