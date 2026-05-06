@@ -32,12 +32,32 @@ func NewClient(cfg Config) *Client {
 	}
 }
 
+// repairJSON пытается восстановить обрезанный JSON, доклеивая закрывающие скобки.
+func repairJSON(raw string) string {
+	// Уже валидный — не трогаем
+	if json.Valid([]byte(raw)) {
+		return raw
+	}
+
+	// Пробуем доклеить ]} (закрыть массив и объект)
+	candidates := []string{
+		raw + "]",
+		raw + "]}",
+		raw + "}]",
+	}
+	for _, c := range candidates {
+		if json.Valid([]byte(c)) {
+			return c
+		}
+	}
+	return raw
+}
+
 // ChatJSON отправляет chat completion и парсит JSON-ответ в target.
-// target должен быть указателем (напр. &CleanResult{}).
-// Автоматически чистит ```json ... ``` обёртку.
-// Пытается восстановить JSON при типовых ошибках Gemma 4.
+// target должен быть указателем (напр. &Content{}).
+// Автоматически чистит ```json ... ``` обёртку и пытается восстановить обрезанный JSON.
 func (c *Client) ChatJSON(ctx context.Context, userPrompt string,
-	 target any) error {
+	target any) error {
 
 	reqBody := map[string]any{
 		"messages": []map[string]string{
@@ -93,18 +113,23 @@ func (c *Client) ChatJSON(ctx context.Context, userPrompt string,
 		return fmt.Errorf("no choices in response")
 	}
 
+	// Чистим ответ
 	content := strings.TrimSpace(chatResp.Choices[0].Message.Content)
-	// чистим ```json ... ``` обёртку
 	content = strings.TrimPrefix(content, "```json")
 	content = strings.TrimPrefix(content, "```")
 	content = strings.TrimSuffix(content, "```")
 	content = strings.TrimSpace(content)
 
-	// Пробуем распарсить как есть
+	// Пробуем распарсить
 	if err := json.Unmarshal([]byte(content), target); err != nil {
+		// Пробуем восстановить обрезанный JSON
+		if fixed := repairJSON(content); fixed != content {
+			if err2 := json.Unmarshal([]byte(fixed), target); err2 == nil {
+				return nil
+			}
+		}
 		return fmt.Errorf("unmarshal target: %w\nraw content: %s", err, content)
 	}
 
 	return nil
 }
-

@@ -50,32 +50,8 @@ func (r *DBRepo) LoadHeadwords(ctx context.Context, limit int, afterID int) ([]H
         return headwords, nil
     }
 
-func (r *DBRepo) GetMaxID(ctx context.Context) (int, error) {
-        var id int
-        err := r.db.GetContext(ctx, &id, `SELECT MAX(id) FROM entries`)
-        return id, err
-}
 
-func (r *DBRepo) GetEntries(limit int) ([]domain.Entry, error) {
-        var entries []domain.Entry
-        err := r.db.Select(&entries, `SELECT id, headword, pinyin FROM entries LIMIT ?`, limit)
-        return entries, err
-}
-
-func (r *DBRepo) GetByHeadword(headword string) (*domain.Entry, error) {
-        var entry domain.Entry
-        err := r.db.Get(&entry, `SELECT id, headword, pinyin, pinyin_normalized FROM entries WHERE headword = ?`, headword)
-        if err != nil {
-                return nil, err
-        }
-
-        var meanings []domain.Meaning
-        r.db.Select(&meanings, `SELECT id, text FROM meanings WHERE entry_id = ?`, entry.ID)
-        entry.Meanings = meanings
-
-        return &entry, nil
-}
-
+// For CLI
 func (r *DBRepo) GetExamples(limit int) ([]domain.Example, error) {
         var examples []domain.Example
         err := r.db.Select(&examples, `SELECT headword, text FROM examples LIMIT ?`, limit)

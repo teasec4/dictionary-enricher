@@ -91,8 +91,8 @@ func main() {
 		Model:   cfg.LLMModel,
 	})
 
-	headwordsCh := make(chan string, 200)
-	examplesCh := make(chan domain.Example, 500)
+	headwordsCh := make(chan string, cfg.BatchSize)
+	examplesCh := make(chan domain.Example, cfg.BatchSize)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -155,7 +155,7 @@ func main() {
 			for _, hw := range headwords {
 				if len([]rune(hw.Headword)) > cfg.MaxChars {
 					skipped++
-					continue
+				continue
 				}
 				select {
 				case headwordsCh <- hw.Headword:
@@ -172,13 +172,14 @@ func main() {
 	// CONSUMER - LLM processing
 	log.Println("Consumer: starting LLM processing...")
 	processed := 0
+	consumerLoop:
 	for {
 		var batch []string
 		for i := 0; i < cfg.BatchSize; i++ {
 			select {
 			case hw, ok := <-headwordsCh:
 				if !ok {
-					break
+					break consumerLoop
 				}
 				batch = append(batch, hw)
 			case <-ctx.Done():
@@ -199,7 +200,7 @@ func main() {
 			continue
 		}
 
-processed += len(resp.Examples)
+		processed += len(resp.Examples)
 		log.Printf("Received %d examples (total: %d)", len(resp.Examples), processed)
 		for _, ex := range resp.Examples {
 			log.Printf("  %s: %s", ex.Headword, ex.Text)
